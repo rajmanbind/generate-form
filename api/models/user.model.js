@@ -9,6 +9,7 @@ const UserSchema = new mongoose.Schema({
   address: { type: String },
   formId: { type: String },
   refreshToken: { type: String },
+  roles: [{ type: String, enum: ['Admin', 'User'], default: 'User' }],
 });
 
 UserSchema.pre("save", async function (next) {
@@ -29,6 +30,17 @@ UserSchema.methods.generateRefreshToken = async function () {
     process.env.REFRESH_TOKEN_SECRET,
     {
       expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+    }
+  );
+};
+UserSchema.methods.generateAccessToken = async function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
     }
   );
 };

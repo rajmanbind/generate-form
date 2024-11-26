@@ -4,7 +4,8 @@ import { useState, ChangeEvent, MouseEvent, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
-
+import logo from "../../public/logo2.png";
+import { showToast } from "@/components/ToastProvider";
 interface FormData {
   name: string;
   email: string;
@@ -58,40 +59,67 @@ const HomePage = () => {
       // Store form data in state
       setFormData(formData);
 
-      alert(`Form generated with ID: ${response.data.data.form._id}`);
+      // alert(`Form generated with ID: ${response.data.data.form._id}`);
+      showToast(`form generated successfully: ${response.data.data.form._id}`,"success")
       // router.push("/form");
     } catch (err: any) {
       console.error("Error generating form:", err);
-      setError(err.response?.data?.message || "Failed to generate form.");
 
-
-      
+      setError(err.response?.data?.message || "User not logged in.");
+      if (
+        err.response.status === 401 &&
+        err.response?.data?.message == "jwt expired"
+      ) {
+        localStorage.removeItem("user");
+        setFormData(null)
+        router.push("/login");
+      }
       if (axios.isAxiosError(error) && error.response) {
+        console.log(err.response.status);
         // Check for 401 Unauthorized error indicating user not found or incorrect password
         if (error.response.status === 401) {
-          console.error("Login failed: Unauthorized - Invalid credentials");
+          console.log("Login failed: Unauthorized - Invalid credentials");
+          showToast(error.response.data.message, "error"); 
         } else {
           // Handle other types of errors
-          console.error("Error signup in", error);
+          console.error("Error in", error);
           // alert("An unexpected error occurred. Please try again later.");
         }
       } else {
         // Handle network or other issues
         console.error("Network error or server is down", error);
-        alert("Network error. Please try again later.");
+        showToast("Network error. Please try again later","error")
       }
     } finally {
       setLoading(false);
     }
   };
+  const [logo, setLogo] = useState<string>("");
+
+  // Fetch the image from the public folder and convert it to Base64
+  const loadLogo = async () => {
+    const response = await fetch("/logo2.png"); // Path to your image
+    console.log(response);
+    const blob = await response.blob();
+    const reader = new FileReader();
+    reader.onloadend = () => setLogo(reader.result as string);
+    reader.readAsDataURL(blob);
+  };
 
   // Handle the PDF download
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
+    await loadLogo();
     if (formData) {
       const doc = new jsPDF();
       doc.text("User Form", 10, 10);
       doc.text(`Name: ${formData.name}`, 10, 20);
       doc.text(`Email: ${formData.email}`, 10, 30);
+      doc.text(`Phone: ${formData.phone}`, 10, 40);
+      doc.text(`Address: ${formData.address}`, 10, 50);
+      // Add image if loaded
+      if (logo) {
+        doc.addImage(logo, "PNG", 10, 60, 0, 0);
+      }
       doc.save("user-form.pdf");
     }
   };
@@ -116,27 +144,27 @@ const HomePage = () => {
       } else {
         setError("Form data not found.");
       }
+      showToast("Viewed form successfully","success")
     } catch (err: any) {
       console.error("Error fetching form data:", err);
       setError(err.response?.data?.message || "Failed to fetch form.");
-
 
       if (axios.isAxiosError(error) && error.response) {
         // Check for 401 Unauthorized error indicating user not found or incorrect password
         if (error.response.status === 401) {
           console.error("Login failed: Unauthorized - Invalid credentials");
+          showToast(error.response.data.message, "error"); 
         } else {
           // Handle other types of errors
-          console.error("Error signup in", error);
+          console.error("Error in", error);
           // alert("An unexpected error occurred. Please try again later.");
         }
       } else {
         // Handle network or other issues
         console.error("Network error or server is down", error);
         alert("Network error. Please try again later.");
+        showToast("Network error. Please try again later.","error")
       }
-
-
     } finally {
       setUniqueId("");
       setLoading(false);
@@ -152,22 +180,21 @@ const HomePage = () => {
       viewForm(uniqueId);
     }
   };
-  // useEffect(() => {
-  //   // Check if we are on the client-side to access localStorage
-  //   if (typeof window !== "undefined") {
-  //     const user = localStorage.getItem("user");
-  //     console.log("Checking user:", user);
+  useEffect(() => {
+    // Check if we are on the client-side to access localStorage
+    if (typeof window !== "undefined") {
+      const user = localStorage.getItem("user");
+      // const token = localStorage.getItem("token");
+      console.log("Checking user:", user);
 
-  //     if (token) {
-  //       // Redirect to the home page if token exists
-  //       router.push("/");
-  //     }
-  //     else{
-        
-  //       router.push("/login");
-  //   }
-  //   }
-  // }, [router]);
+      if (user) {
+        // Redirect to the home page if token exists
+        router.push("/");
+      } else {
+        router.push("/login");
+      }
+    }
+  }, [router]);
   return (
     <div className="flex justify-center items-center h-screen bg-gray-100 gap-20">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full space-y-4">
@@ -231,7 +258,7 @@ const HomePage = () => {
           className="w-full p-3 bg-green-500 text-white rounded-lg hover:bg-green-600"
           disabled={loading || !uniqueId}
         >
-          {loading ? "Loading..." : "View Form"}
+          {loading && uniqueId ? "Loading..." : "View Form"}
         </button>
       </div>
     </div>

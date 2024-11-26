@@ -2,6 +2,7 @@
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useState } from "react";
+import { showToast } from "../../components/ToastProvider";
 
 interface FormData {
   username: string;
@@ -22,7 +23,7 @@ const Signup = () => {
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const router = useRouter();
-
+  const [isLoading, setIsLoading] = useState(false);
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev: any) => ({ ...prev, [name]: value }));
@@ -76,7 +77,7 @@ const Signup = () => {
     if (!validate()) {
       return; // Do not submit if validation fails
     }
-
+    setIsLoading(true);
     try {
       const response = await axios.post(
         "http://localhost:5000/api/auth/register",
@@ -87,23 +88,27 @@ const Signup = () => {
           },
         }
       );
+      if (response.status === 201) {
+        showToast(response.data.message, "success");
+        setFormData({
+          username: "",
+          email: "",
+          password: "",
+          phone: "",
+          address: "",
+        });
+      }
       router.push("/login");
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        // Check for 401 Unauthorized error indicating user not found or incorrect password
-        if (error.response.status === 401) {
-          console.error("Login failed: Unauthorized - Invalid credentials");
-          alert("Invalid email or password. Please try again."); // Alert user if they are unauthorized
-        } else {
-          // Handle other types of errors
-          console.error("Error logging in", error);
-          alert("An unexpected error occurred. Please try again later.");
-        }
+        const errorMessage =
+          error.response.data?.message || "Something went wrong!";
+        showToast(errorMessage, "error");
       } else {
-        // Handle network or other issues
-        console.error("Network error or server is down", error);
-        alert("Network error. Please try again later.");
+        showToast("Network error. Please try again later.", "error");
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -181,7 +186,7 @@ const Signup = () => {
             type="submit"
             className="w-full p-3 bg-blue-500 text-white rounded-lg"
           >
-            Sign Up
+            {isLoading ? "Sign Up..." : "Sign Up"}
           </button>
         </form>
         <div className="mt-4 text-center">
