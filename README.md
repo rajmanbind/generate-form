@@ -55,7 +55,7 @@ The Client folder contains the frontend application, built using:
 
 
 This will provide a URL like: 
-htpp://localhost:3000
+[http://localhost:3000](http://localhost:3000)
 
 
 Open the URl in your browser to view the application
