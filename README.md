@@ -1,4 +1,4 @@
-# Genere Form
+# Generate Form
 
 This repository contains two parts:
 - **API**: Backend services for the application.
