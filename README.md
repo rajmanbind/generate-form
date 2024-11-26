@@ -42,16 +42,16 @@ The Client folder contains the frontend application, built using:
 
 ## How to Run 
 1. Navigate to the Client folder
- ```bash
- cd <repository_folder>/client
+    ```bash
+    cd <repository_folder>/client
 
 2. Install dependencies: 
-```bash
-npm install
+    ```bash
+    npm install
 
 3. Start the development server:
-```bash
-npm run dev
+    ```bash
+    npm run dev
 
 
 This will provide a URL like: 
