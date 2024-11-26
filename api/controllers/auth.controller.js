@@ -1,6 +1,6 @@
 const User = require("../models/user.model.js");
 const ApiResponse = require("../utils/apiResponse.js");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
 const generateAccessAndRefereshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -17,51 +17,55 @@ const generateAccessAndRefereshTokens = async (userId) => {
       .json(ApiResponse(500, null, "Internal server error"));
   }
 };
+const bcrypt = require("bcrypt");
 
 const registerUser = async (req, res) => {
   const { username, email, password, phone, address } = req.body;
-  console.log(username, email, password);
+
+  // Validate required fields
   if (!email || !username || !password) {
     return res
       .status(400)
       .json(ApiResponse(400, null, "All fields are required!"));
   }
 
-  const existedUser = await User.findOne({ email });
-  if (existedUser) {
+  try {
+    // Check if the user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res
+        .status(409)
+        .json(ApiResponse(409, null, "User with this email already exists!"));
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create the new user
+    const user = await User.create({
+      email,
+      password: hashedPassword,
+      username,
+      phone,
+      address,
+      roles: ["User"],
+    });
+
+    // Prepare response object without sensitive data
+    const { _id, roles } = user;
+    const createdUser = { _id, username, email, phone, address, roles };
+
+    return res
+      .status(200)
+      .json(ApiResponse(201, createdUser, "User registered successfully!"));
+  } catch (error) {
+    console.error(`Error during user registration: ${error.message}`, error);
     return res
       .status(500)
       .json(
-        ApiResponse(409, null, "User with email or username already exist!")
+        ApiResponse(500, null, "Internal server error. Please try again later.")
       );
   }
-
-  const user = await User.create({
-    email,
-    password,
-    username,
-    phone,
-    address,
-    roles: ['User'], 
-  });
-  const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
-  if (!createdUser) {
-    return res
-      .status(500)
-      .json(
-        ApiResponse(
-          500,
-          null,
-          "Something went wrong while registering the user"
-        )
-      );
-  }
-
-  return res
-    .status(201)
-    .json(ApiResponse(200, createdUser, "User registerd successfully!"));
 };
 
 const loginUser = async (req, res) => {
@@ -109,7 +113,8 @@ const loginUser = async (req, res) => {
           200,
           {
             user: loggedInUser,
-            refreshToken,accessToken
+            refreshToken,
+            accessToken,
           },
           "User logged In Successfully"
         )
@@ -118,34 +123,42 @@ const loginUser = async (req, res) => {
     return res.status(500).json(ApiResponse(500, null, error.message));
   }
 };
-
 const logoutUser = async (req, res) => {
-  await User.findByIdAndUpdate(
-    req.user._id,
-    {
-      $set: {
-        refreshToken: undefined,
-      },
-    },
-    { new: true }
-  );
+  try {
+    // Clear the user's refresh token in the database
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: { refreshToken: undefined } }, // Unset refreshToken instead of setting it to undefined
+      { new: true }
+    );
 
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
+    // Define cookie options
+    const options = {
+      httpOnly: true,
+      secure: true, // Ensure cookies are secure in production
+      sameSite: "strict", // Prevent CSRF attacks
+    };
 
-  return res
-    .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
-    .json(ApiResponse(200, null, "user logged out"));
+    // Clear cookies and respond with success message
+    return res
+      .status(200)
+      .clearCookie("accessToken", options)
+      .clearCookie("refreshToken", options)
+      .json(ApiResponse(200, null, "User logged out successfully"));
+  } catch (error) {
+    console.error("Error logging out user:", error);
+
+    // Return internal server error response
+    return res
+      .status(500)
+      .json(ApiResponse(500, null, "Internal server error. Please try again."));
+  }
 };
 
 const refreshAccessToken = async (req, res) => {
   const incomingRefreshToken =
     req.cookies?.refreshToken || req.body?.refreshToken;
-  console.log("Incoming Refresh Token: ",incomingRefreshToken);
+  console.log("Incoming Refresh Token: ", incomingRefreshToken);
   if (!incomingRefreshToken) {
     return res.status(401).json(ApiResponse(401, null, "unauthorized request"));
   }
@@ -196,14 +209,15 @@ const refreshAccessToken = async (req, res) => {
       .json(ApiResponse(401, null, error?.message || "Invalid refresh token"));
   }
 };
+const getCurrentUser = (req, res) => {
+  const currentUser = req.user; // The decoded user info added by verifyJWT middleware
 
-const getCurrentUser = async (req, res) => {
-  return res
-    .status(200)
-    .json(ApiResponse(200, req.user, "User fetched successfully"));
+  if (!currentUser) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  return res.status(200).json({ user: currentUser });
 };
-
-
 
 const changeCurrentPassword = async (req, res) => {
   try {
@@ -245,36 +259,30 @@ const changeCurrentPassword = async (req, res) => {
   }
 };
 
-
-
 const updateAccountDetails = async (req, res) => {
-  const { fullName, email } = req.body;
+  // const { username, email } = req.body;
 
-  if (!fullName || !email) {
-    return res
-      .status(400)
-      .json(ApiResponse(400, null, "All fields are required"));
-  }
+  // if (!username || !email) {
+  //   return res
+  //     .status(400)
+  //     .json(ApiResponse(400, null, "All fields are required"));
+  // }
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: {
-        fullName,
+        username,
         email: email,
       },
     },
     { new: true }
-  ).select("-password");
+  ).select("-password -refreshToken");
 
   return res
     .status(200)
     .json(ApiResponse(200, user, "Account details updated successfully"));
 };
-
-
-
-
 
 module.exports = {
   registerUser,
