@@ -2,18 +2,16 @@ const Form = require("../models/form.model.js");
 const User = require("../models/user.model.js");
 const ApiResponse = require("../utils/apiResponse");
 const mongoose = require("mongoose");
-
-// Helper function to handle unauthorized access
-const handleUnauthorized = (res) => {
-  return res.status(401).json(ApiResponse(401, null, "Unauthorized: User is not authenticated"));
-};
-
-// Generate Form API
+//generate form
 const generateForm = async (req, res) => {
   try {
     // Check if the user is authenticated
     if (!req.user || !req.user._id) {
-      return handleUnauthorized(res);
+      return res
+        .status(401)
+        .json(
+          ApiResponse(401, null, "Unauthorized: User is not authenticated")
+        );
     }
 
     // Fetch user details using the authenticated user ID
@@ -22,21 +20,53 @@ const generateForm = async (req, res) => {
       return res.status(404).json(ApiResponse(404, null, "User not found"));
     }
 
-    // Create a new form with user details
-    const form = new Form({
-      formData: { name: userDetails.username, email: userDetails.email ,phone:userDetails.phone,address:userDetails.address},
-    });
+    // Define the current form data
+    const currentFormData = {
+      name: userDetails.username,
+      email: userDetails.email,
+      phone: userDetails.phone,
+      address: userDetails.address,
+    };
 
-    // Save the form and associate it with the user
-    userDetails.formId = form._id;
-    await Promise.all([userDetails.save(), form.save()]);
+    // Check if the user already has an associated form
+    let form = await Form.findById(userDetails.formId);
 
-    // Return success response
-    return res.status(201).json(ApiResponse(200, { form }, "Form generated successfully"));
+    if (form) {
+      // Compare the current form data with the existing form data
+      if (JSON.stringify(form.formData) === JSON.stringify(currentFormData)) {
+        return res
+          .status(200)
+          .json(
+            ApiResponse(
+              200,
+              { form },
+              "No changes detected. Form update skipped."
+            )
+          );
+      }
 
+      // Update the existing form with the new data
+      form.formData = currentFormData;
+      await form.save();
+    } else {
+      // If no form exists, create a new one
+      form = new Form({ formData: currentFormData });
+      await form.save();
+
+      // Associate the new form with the user
+      userDetails.formId = form._id;
+      await userDetails.save();
+    }
+
+    // Return success response with the updated/created form
+    return res
+      .status(200)
+      .json(ApiResponse(200, { form }, "Form updated successfully"));
   } catch (error) {
     console.error(error);
-    return res.status(500).json(ApiResponse(500, null, "Internal Server Error"));
+    return res
+      .status(500)
+      .json(ApiResponse(500, null, "Internal Server Error"));
   }
 };
 
@@ -55,11 +85,14 @@ const viewForm = async (req, res) => {
     }
 
     // Return form data
-    return res.status(200).json(ApiResponse(200, formData, "Form details fetched successfully"));
-
+    return res
+      .status(200)
+      .json(ApiResponse(200, formData, "Form details fetched successfully"));
   } catch (error) {
     console.error(error);
-    return res.status(500).json(ApiResponse(500, null, "Internal Server Error"));
+    return res
+      .status(500)
+      .json(ApiResponse(500, null, "Internal Server Error"));
   }
 };
 
