@@ -36,8 +36,12 @@ const HomePage = () => {
 
   // Helper function to get Authorization headers
   const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("User not logged in. Token missing.");
+    const token = JSON.parse(localStorage.getItem("user")).accessToken;
+    if (!token) {
+      showToast("User not logged in. Token missing.", "error");
+      router.push("/login");
+      return;
+    }
     return { Authorization: `Bearer ${token}` };
   };
 
@@ -60,7 +64,10 @@ const HomePage = () => {
       setFormData(formData);
 
       // alert(`Form generated with ID: ${response.data.data.form._id}`);
-      showToast(`form generated successfully: ${response.data.data.form._id}`,"success")
+      showToast(
+        `form generated successfully: ${response.data.data.form._id}`,
+        "success"
+      );
       // router.push("/form");
     } catch (err: any) {
       console.error("Error generating form:", err);
@@ -71,7 +78,7 @@ const HomePage = () => {
         err.response?.data?.message == "jwt expired"
       ) {
         localStorage.removeItem("user");
-        setFormData(null)
+        setFormData(null);
         router.push("/login");
       }
       if (axios.isAxiosError(error) && error.response) {
@@ -79,7 +86,7 @@ const HomePage = () => {
         // Check for 401 Unauthorized error indicating user not found or incorrect password
         if (error.response.status === 401) {
           console.log("Login failed: Unauthorized - Invalid credentials");
-          showToast(error.response.data.message, "error"); 
+          showToast(error.response.data.message, "error");
         } else {
           // Handle other types of errors
           console.error("Error in", error);
@@ -88,7 +95,7 @@ const HomePage = () => {
       } else {
         // Handle network or other issues
         console.error("Network error or server is down", error);
-        showToast("Network error. Please try again later","error")
+        showToast("Network error. Please try again later", "error");
       }
     } finally {
       setLoading(false);
@@ -144,7 +151,7 @@ const HomePage = () => {
       } else {
         setError("Form data not found.");
       }
-      showToast("Viewed form successfully","success")
+      showToast("Viewed form successfully", "success");
     } catch (err: any) {
       console.error("Error fetching form data:", err);
       setError(err.response?.data?.message || "Failed to fetch form.");
@@ -153,7 +160,7 @@ const HomePage = () => {
         // Check for 401 Unauthorized error indicating user not found or incorrect password
         if (error.response.status === 401) {
           console.error("Login failed: Unauthorized - Invalid credentials");
-          showToast(error.response.data.message, "error"); 
+          showToast(error.response.data.message, "error");
         } else {
           // Handle other types of errors
           console.error("Error in", error);
@@ -163,7 +170,7 @@ const HomePage = () => {
         // Handle network or other issues
         console.error("Network error or server is down", error);
         alert("Network error. Please try again later.");
-        showToast("Network error. Please try again later.","error")
+        showToast("Network error. Please try again later.", "error");
       }
     } finally {
       setUniqueId("");

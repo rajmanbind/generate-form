@@ -73,6 +73,7 @@ const SignIn = () => {
         setData(userData);
         showToast(response.data.message, "success");
         // Redirect to the home page
+        console.log(userData.user.roles)
         router.push("/");
       } else {
         alert("Invalid email or password. Please try again.");
@@ -80,7 +81,7 @@ const SignIn = () => {
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         if (error.response.status === 401) {
-          // console.log(error.response.data)
+          console.log(error.response.data)
           showToast(error.response.data.message, "error");
           // alert("Invalid email or password. Please try again.");
         } else {

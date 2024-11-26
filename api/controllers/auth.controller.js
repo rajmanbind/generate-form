@@ -42,6 +42,7 @@ const registerUser = async (req, res) => {
     username,
     phone,
     address,
+    roles: ['User'], 
   });
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
@@ -108,7 +109,7 @@ const loginUser = async (req, res) => {
           200,
           {
             user: loggedInUser,
-            refreshToken,
+            refreshToken,accessToken
           },
           "User logged In Successfully"
         )
