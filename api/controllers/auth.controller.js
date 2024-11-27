@@ -38,13 +38,11 @@ const registerUser = async (req, res) => {
         .json(ApiResponse(409, null, "User with this email already exists!"));
     }
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create the new user
     const user = await User.create({
       email,
-      password: hashedPassword,
+      password,
       username,
       phone,
       address,
